@@ -7,5 +7,6 @@ Rails.application.routes.draw do
   resources :games, only: [:index, :create]
 
   get '/games/show', to: 'games#show'
+  post 'games/join', to: 'games#join_game'
   post 'games/move', to: 'games#move'
 end

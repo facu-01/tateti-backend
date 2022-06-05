@@ -18,4 +18,6 @@ class Game < ApplicationRecord
 
   has_many :moves
 
+  enum status: { in_progress: 0, waiting_for_join: 1, tied: 2, finished: 3 }, _prefix: true
+
 end
