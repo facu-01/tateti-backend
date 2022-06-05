@@ -4,6 +4,7 @@ class GamesController < ApplicationController
   before_action :fetch_game, only: %i[join_game show move]
   before_action :fetch_player, only: %i[create join_game show move]
   before_action :can_play, only: %i[show move]
+  before_action :check_game_ended, only: %i[move show]
 
   def index
     @games = Game.all
@@ -37,12 +38,6 @@ class GamesController < ApplicationController
   end
 
   def show
-    if @game.status_tied?
-      return get_response(message: 'Its a tie!', data: { table: @game.table })
-    end
-    if @game.status_finished?
-      return get_response(message: @game.winner_id == @player.id ? 'You win!' : 'You lost :(', data: { table: @game.table })
-    end
     if check_turn
       get_response(message: 'Its your turn', data: { table: @game.table, yourTurn: true })
     else
@@ -54,7 +49,6 @@ class GamesController < ApplicationController
     cell_index = params.require(:cellIndex)
     # check if it is the turn of the player
     return get_response(message: 'Its not your turn', data: { table: @game.table }, status: 400) unless check_turn
-    return get_response(message: 'The game has ended', status: 400) if @game.status_finished? || @game.status_tied?
 
     @game.moves.new(cell_index:, player_id: @player.id, prev_move_id: @game.moves.last&.id)
 
@@ -103,6 +97,15 @@ class GamesController < ApplicationController
     if @game.player1_id != @player.id && @game.player2_id != @player.id
       get_response(message: 'This game is not for you!, did you try joining the game?', status: 403)
     end
+  end
+
+  def check_game_ended
+    if @game.status_finished?
+      get_response(message: "The game has ended, you #{@game.winner_id == @player.id ? 'win!' : 'lost :('}",
+                   data: { table: @game.table })
+    end
+    get_response(message: 'The game has ended its a tie!', data: { table: @game.table }) if @game.status_tied?
+
   end
 
   def check_turn

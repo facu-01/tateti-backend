@@ -7,7 +7,7 @@ class CreateMoves < ActiveRecord::Migration[7.0]
       t.belongs_to :game
       t.references :prev_move, foreign_key: { to_table: :moves }
 
-      t.index [:game, :cell_index], unique: true
+      t.index %i[game_id cell_index], unique: true
 
       t.timestamps
     end
