@@ -1,18 +1,24 @@
 class PlayersController < ApplicationController
+  skip_before_action :authenticate_request, only: [:create]
 
   def index
     @players = Player.all
-    get_response(message: 'All players', data: @players)
+    render json: @players, status: :ok
   end
 
   def create
-    name = params.require(:name)
-    @player = Player.new(name:)
+    @player = Player.new(player_params)
     if @player.save
-      get_response(message: 'Player created successfully', data: @player)
+      render json: @player, status: :created
     else
-      get_response(message: @player.errors, status: 400)
+      render json: { errors: @player.errors }, status: :unprocessable_entity
     end
+  end
+
+  private
+
+  def player_params
+    params.permit(:name, :email, :password)
   end
 
 end

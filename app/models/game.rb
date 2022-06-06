@@ -10,8 +10,6 @@ class Game < ApplicationRecord
   validates :table, presence: true
 
   validates_associated :moves
-  validates_associated :player1
-  validates_associated :player2
 
   belongs_to :player1, class_name: 'Player'
   belongs_to :player2, class_name: 'Player', optional: true
