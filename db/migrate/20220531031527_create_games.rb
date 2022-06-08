@@ -2,7 +2,8 @@ class CreateGames < ActiveRecord::Migration[7.0]
   def change
     create_table :games do |t|
       t.json :table
-      t.integer :winner_id
+      t.integer :player_winner_id
+      t.integer :first_player_id
       t.integer :status
 
       t.belongs_to :player1

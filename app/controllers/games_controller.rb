@@ -12,13 +12,13 @@ class GamesController < ApplicationController
   end
 
   def create
-    initial_table = [nil, nil, nil, nil, nil, nil, nil, nil, nil]
-    @game = Game.new(player1_id: @current_player.id, table: initial_table)
-    @game.status_waiting_for_join!
-    if @game.save
-      render json: { table: @game.table, status: @game.status }, status: :ok
+    initial_table = [nil] * 9
+    game = Game.new(player1_id: @current_player.id, table: initial_table)
+    game.status_waiting_for_join!
+    if game.save
+      render json: { table: game.table, status: game.status }, status: :ok
     else
-      render json: { errors: @game.errors }, status: :unprocessable_entity
+      render json: { errors: game.errors }, status: :unprocessable_entity
     end
   end
 
@@ -30,6 +30,7 @@ class GamesController < ApplicationController
     end
 
     @game.player2_id = @current_player.id
+    @game.first_player_id = [@game.player1_id, @game.player2_id].sample
     @game.status_in_progress!
     if @game.save
       render json: 'Successfully joined!', status: :ok
@@ -47,12 +48,13 @@ class GamesController < ApplicationController
     # check if it is the turn of the player
     return render json: { errors: 'Its not your turn', table: @game.table }, status: :bad_request unless check_turn
 
-    @game.moves.new(cell_index:, player_id: @current_player.id, prev_move_id: @game.moves.last&.id)
-
-    symbol = @current_player.id == @game.player1_id ? 'x' : 'o'
+    # return render json: { errors: 'Invalid move, that cell has already been occupied' } if @game.moves.all.map(&:cell_index).include? cell_index
+    new_move = @game.moves.new(cell_index:, player_id: @current_player.id, prev_move_id: @game.moves.last&.id)
+    symbol = @current_player.id == @game.first_player_id ? 'x' : 'o'
 
     @game.table.map!.with_index { |c, i| i != cell_index ? c : symbol }
-    if @game.save
+
+    if new_move.save
       # check if player wins
       winning_combinations = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]]
 
@@ -61,14 +63,18 @@ class GamesController < ApplicationController
       winner = winning_combinations.any? { |combination| combination.all? { |c| player_cells.include?(c) } }
 
       if winner
-        @game.winner_id = @current_player.id
+        @game.player_winner_id = @current_player.id
         @game.status_finished!
       end
       # check if is a tie
       a_tie = @game.table.none?(&:nil?)
       @game.status_tied! if a_tie
 
-      render json: { table: @game.table, status: @game.status }, status: :ok
+      if @game.save
+        render json: { table: @game.table, status: @game.status }, status: :ok
+      else
+        render json: { errors: @game.errors }, status: :bad_request
+      end
     else
       render json: { errors: @game.errors }, status: :bad_request
     end
@@ -81,6 +87,8 @@ class GamesController < ApplicationController
   end
 
   def can_play
+    return render json: { errors: 'Waiting for another player!' }, status: :ok if @game.player2_id.nil?
+
     if @game.player1_id != @current_player.id && @game.player2_id != @current_player.id
       render json: { errors: 'This game is not for you!, did you try joining the game?' }, status: :forbidden
     end
@@ -88,13 +96,12 @@ class GamesController < ApplicationController
 
   def check_game_ended
     if @game.status_finished? || @game.status_tied?
-      render json: { table: @game.table, status: @game.status, winner: @game.status_finished? ? Player.find_by_id(@game.winner_id).name : nil }, status: :ok
-
+      render json: { table: @game.table, status: @game.status, winner: @game.status_finished? ? Player.find_by_id(@game.player_winner_id).name : nil }, status: :ok
     end
   end
 
   def check_turn
-    return false if @game.moves.empty? && @game.player1_id != @current_player.id
+    return false if @game.moves.empty? && @game.first_player_id != @current_player.id
     return false if @game.moves.last&.player_id == @current_player.id
 
     true

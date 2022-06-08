@@ -13,7 +13,8 @@
 ActiveRecord::Schema[7.0].define(version: 2022_05_31_031527) do
   create_table "games", force: :cascade do |t|
     t.json "table"
-    t.integer "winner_id"
+    t.integer "player_winner_id"
+    t.integer "first_player_id"
     t.integer "status"
     t.integer "player1_id"
     t.integer "player2_id"
@@ -30,7 +31,6 @@ ActiveRecord::Schema[7.0].define(version: 2022_05_31_031527) do
     t.integer "prev_move_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["game_id", "cell_index"], name: "index_moves_on_game_id_and_cell_index", unique: true
     t.index ["game_id"], name: "index_moves_on_game_id"
     t.index ["player_id"], name: "index_moves_on_player_id"
     t.index ["prev_move_id"], name: "index_moves_on_prev_move_id"
