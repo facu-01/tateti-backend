@@ -12,9 +12,8 @@ class GamesController < ApplicationController
   end
 
   def create
-    initial_table = [nil] * 9
-    game = Game.new(player1_id: @current_player.id, table: initial_table)
-    game.status_waiting_for_join!
+    game = Game.new
+    game.initialize_game(@current_player)
     if game.save
       render json: { table: game.table, status: game.status }, status: :ok
     else
@@ -23,24 +22,22 @@ class GamesController < ApplicationController
   end
 
   def join_game
-    return render json: 'Cannot join game, the game is complete', status: :forbidden unless @game.player2_id.nil?
+    return render json: { errors: 'Cannot join game, the game is complete' }, status: :forbidden if @game.complete?
 
-    if @game.player1_id == @current_player.id || @game.player2_id == @current_player.id
-      return render json: { errors: 'You cannot join the same game twice' }, status: :bad_request
-    end
+    return render json: { errors: 'You cannot join the same game twice' }, status: :bad_request if @game.player_in_game?(@current_player)
 
-    @game.player2_id = @current_player.id
-    @game.first_player_id = [@game.player1_id, @game.player2_id].sample
-    @game.status_in_progress!
+    @game.join_game(@current_player.id)
     if @game.save
-      render json: 'Successfully joined!', status: :ok
+      render json: { message: 'Successfully joined!' }, status: :ok
     else
       render json: { errors: @game.errors }, status: :unprocessable_entity
     end
   end
 
   def show
-    render json: { table: @game.table, yourTurn: check_turn }
+    render json: { message: 'Waiting for another player!' }, status: :ok if @game.status_waiting_for_join
+    render json: { errors: 'This game is not for you!, did you try joining the game?' }, status: :forbidden unless @game.player_in_game?(@current_player)
+    render json: { table: @game.table, yourTurn: @game.player_turn?(@current_player) }
   end
 
   def move
@@ -86,24 +83,10 @@ class GamesController < ApplicationController
     @game = Game.find(params.require(:gameId))
   end
 
-  def can_play
-    return render json: { errors: 'Waiting for another player!' }, status: :ok if @game.player2_id.nil?
-
-    if @game.player1_id != @current_player.id && @game.player2_id != @current_player.id
-      render json: { errors: 'This game is not for you!, did you try joining the game?' }, status: :forbidden
-    end
-  end
-
   def check_game_ended
     if @game.status_finished? || @game.status_tied?
       render json: { table: @game.table, status: @game.status, winner: @game.status_finished? ? Player.find_by_id(@game.player_winner_id).name : nil }, status: :ok
     end
   end
 
-  def check_turn
-    return false if @game.moves.empty? && @game.first_player_id != @current_player.id
-    return false if @game.moves.last&.player_id == @current_player.id
-
-    true
-  end
 end
