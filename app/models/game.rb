@@ -46,4 +46,8 @@ class Game < ApplicationRecord
     true
   end
 
+  def game_ended?
+    self.status_finished? || self.status_tied?
+  end
+
 end

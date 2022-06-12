@@ -1,9 +1,14 @@
 class ApplicationController < ActionController::API
   include JsonWebToken
 
+  rescue_from ActiveRecord::RecordNotFound, with: :record_not_found
   before_action :authenticate_request
 
   private
+
+  def record_not_found(error)
+    render status: :not_found, json: { message: error.message }
+  end
 
   def authenticate_request
     header = request.headers['Authorization']

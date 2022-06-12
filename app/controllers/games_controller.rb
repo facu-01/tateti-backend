@@ -3,7 +3,7 @@
 class GamesController < ApplicationController
   skip_before_action :authenticate_request, only: [:index]
   before_action :fetch_game, only: %i[join_game show move]
-  before_action :can_play, only: %i[show move]
+  before_action :check_player_in_game, only: %i[move show]
   before_action :check_game_ended, only: %i[move show]
 
   def index
@@ -26,7 +26,7 @@ class GamesController < ApplicationController
 
     return render json: { errors: 'You cannot join the same game twice' }, status: :bad_request if @game.player_in_game?(@current_player)
 
-    @game.join_game(@current_player.id)
+    @game.join_game(@current_player)
     if @game.save
       render json: { message: 'Successfully joined!' }, status: :ok
     else
@@ -35,17 +35,16 @@ class GamesController < ApplicationController
   end
 
   def show
-    render json: { message: 'Waiting for another player!' }, status: :ok if @game.status_waiting_for_join
-    render json: { errors: 'This game is not for you!, did you try joining the game?' }, status: :forbidden unless @game.player_in_game?(@current_player)
+    return render json: { message: 'Waiting for another player!' }, status: :ok if @game.status_waiting_for_join?
+
     render json: { table: @game.table, yourTurn: @game.player_turn?(@current_player) }
   end
 
   def move
     cell_index = params.require(:cellIndex)
     # check if it is the turn of the player
-    return render json: { errors: 'Its not your turn', table: @game.table }, status: :bad_request unless check_turn
+    return render json: { errors: 'Its not your turn', table: @game.table }, status: :ok unless @game.player_turn?(@current_player)
 
-    # return render json: { errors: 'Invalid move, that cell has already been occupied' } if @game.moves.all.map(&:cell_index).include? cell_index
     new_move = @game.moves.new(cell_index:, player_id: @current_player.id, prev_move_id: @game.moves.last&.id)
     symbol = @current_player.id == @game.first_player_id ? 'x' : 'o'
 
@@ -68,12 +67,12 @@ class GamesController < ApplicationController
       @game.status_tied! if a_tie
 
       if @game.save
-        render json: { table: @game.table, status: @game.status }, status: :ok
+        render json: { table: @game.table, status: @game.status, finished: @game.game_ended? ? true : false }, status: :ok
       else
         render json: { errors: @game.errors }, status: :bad_request
       end
     else
-      render json: { errors: @game.errors }, status: :bad_request
+      render json: { errors: new_move.errors }, status: :bad_request
     end
   end
 
@@ -83,8 +82,12 @@ class GamesController < ApplicationController
     @game = Game.find(params.require(:gameId))
   end
 
+  def check_player_in_game
+    render json: { errors: 'This game is not for you!, did you try joining the game?' }, status: :forbidden unless @game.player_in_game?(@current_player)
+  end
+
   def check_game_ended
-    if @game.status_finished? || @game.status_tied?
+    if @game.game_ended?
       render json: { table: @game.table, status: @game.status, winner: @game.status_finished? ? Player.find_by_id(@game.player_winner_id).name : nil }, status: :ok
     end
   end
