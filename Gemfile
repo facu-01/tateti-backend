@@ -25,6 +25,9 @@ gem "puma", "~> 5.0"
 gem "bcrypt", "~> 3.1.7"
 gem "jwt"
 
+# For nice tokens
+gem "munemo"
+
 # Windows does not include zoneinfo files, so bundle the tzinfo-data gem
 gem "tzinfo-data"
 

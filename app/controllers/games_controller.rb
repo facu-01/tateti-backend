@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 class GamesController < ApplicationController
   skip_before_action :authenticate_request, only: [:index]
   before_action :fetch_game, only: %i[join_game show move]
@@ -14,8 +12,9 @@ class GamesController < ApplicationController
   def create
     game = Game.new
     game.initialize_game(@current_player)
+    game_token = game.generate_token
     if game.save
-      render json: { table: game.table, status: game.status }, status: :ok
+      render json: { table: game.table, gameToken: game_token, status: game.status }, status: :ok
     else
       render json: { errors: game.errors }, status: :unprocessable_entity
     end
@@ -78,8 +77,19 @@ class GamesController < ApplicationController
 
   private
 
+  def invalid_game_token
+    render status: :bad_request, json: { message: "Invalid token" }
+  end
+
   def fetch_game
-    @game = Game.find(params.require(:gameId))
+    game_token = params.require(:gameToken)
+
+    begin
+      game_id = Game.read_token(game_token)
+    rescue ArgumentError
+      return render status: :bad_request, json: { message: "Invalid token" }
+    end
+    @game = Game.find(game_id)
   end
 
   def check_player_in_game

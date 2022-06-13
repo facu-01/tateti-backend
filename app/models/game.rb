@@ -1,10 +1,3 @@
-# //TODO: validar tablero
-# class TableValidator < ActiveModel::Validator
-#   def validate(record)
-#     record.errors.add :base, "Invalid table" if record.table.length < 3
-#   end
-# end
-
 class Game < ApplicationRecord
   validates :player1, presence: true
   validates :table, presence: true
@@ -48,6 +41,16 @@ class Game < ApplicationRecord
 
   def game_ended?
     self.status_finished? || self.status_tied?
+  end
+
+  def generate_token
+    token = self.id * 22
+    Munemo.to_s(token)
+  end
+
+  def self.read_token(token)
+    token = Munemo.to_i(token)
+    (token / 22)
   end
 
 end
