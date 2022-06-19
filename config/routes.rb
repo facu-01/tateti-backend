@@ -3,7 +3,7 @@ Rails.application.routes.draw do
 
   # Defines the root path route ("/")
   # root "articles#index"
-  resources :players, only: [:index, :create]
+  resources :players, only: [:index, :create, :show]
   post '/auth/login', to: 'authentication#login'
 
   resources :games, only: [:index, :create]

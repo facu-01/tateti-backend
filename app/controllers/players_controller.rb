@@ -7,12 +7,16 @@ class PlayersController < ApplicationController
   end
 
   def create
-    @player = Player.new(player_params)
-    if @player.save
-      render json: @player, status: :created
+    player = Player.new(player_params)
+    if player.save
+      render json: { name: player.name, email: player.email }, status: :created
     else
-      render json: { errors: @player.errors }, status: :unprocessable_entity
+      render json: { errors: player.errors }, status: :unprocessable_entity
     end
+  end
+
+  def show
+    render json: { name: @current_player.name }, status: 200
   end
 
   private
