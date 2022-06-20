@@ -14,7 +14,7 @@ class GamesController < ApplicationController
     game.initialize_game(@current_player)
     game_token = game.generate_token
     if game.save
-      render json: { table: game.table, gameToken: game_token, status: game.status }, status: :ok
+      render json: { gameToken: game_token, gameStatus: game.status }, status: :ok
     else
       render json: { errors: game.errors }, status: :unprocessable_entity
     end
@@ -34,9 +34,9 @@ class GamesController < ApplicationController
   end
 
   def show
-    return render json: { message: 'Waiting for another player!' }, status: :ok if @game.status_waiting_for_join?
+    return render json: { message: 'Waiting for another player!', status: @game.status }, status: :ok if @game.status_waiting_for_join?
 
-    render json: { table: @game.table, yourTurn: @game.player_turn?(@current_player) }
+    render json: { table: @game.table, yourTurn: @game.player_turn?(@current_player), status: @game.status }
   end
 
   def move
