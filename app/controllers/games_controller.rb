@@ -21,9 +21,8 @@ class GamesController < ApplicationController
   end
 
   def join_game
-    return render json: { errors: 'Cannot join game, the game is complete' }, status: :forbidden if @game.complete?
-
     return render json: { errors: 'You cannot join the same game twice' }, status: :bad_request if @game.player_in_game?(@current_player)
+    return render json: { errors: 'Cannot join game, the game is complete' }, status: :forbidden if @game.complete?
 
     @game.join_game(@current_player)
     if @game.save
@@ -36,7 +35,7 @@ class GamesController < ApplicationController
   def show
     return render json: { message: 'Waiting for another player!', status: @game.status }, status: :ok if @game.status_waiting_for_join?
 
-    render json: { table: @game.table, yourTurn: @game.player_turn?(@current_player), status: @game.status }
+    render json: { table: @game.table, yourTurn: @game.player_turn?(@current_player), status: @game.status, finished: false }
   end
 
   def move
@@ -47,7 +46,7 @@ class GamesController < ApplicationController
     new_move = @game.moves.new(cell_index:, player_id: @current_player.id, prev_move_id: @game.moves.last&.id)
     symbol = @current_player.id == @game.first_player_id ? 'x' : 'o'
 
-    @game.table.map!.with_index { |c, i| i != cell_index ? c : symbol }
+    @game.table.map!.with_index { |c, i| i != cell_index.to_i ? c : symbol }
 
     if new_move.save
       # check if player wins
@@ -78,7 +77,7 @@ class GamesController < ApplicationController
   private
 
   def invalid_game_token
-    render status: :bad_request, json: { message: "Invalid token" }
+    render status: :bad_request, json: { errors: "Invalid token" }
   end
 
   def fetch_game
@@ -87,7 +86,7 @@ class GamesController < ApplicationController
     begin
       game_id = Game.read_token(game_token)
     rescue ArgumentError
-      return render status: :bad_request, json: { message: "Invalid token" }
+      return render status: :bad_request, json: { errors: "Invalid token" }
     end
     @game = Game.find(game_id)
   end
@@ -98,7 +97,7 @@ class GamesController < ApplicationController
 
   def check_game_ended
     if @game.game_ended?
-      render json: { table: @game.table, status: @game.status, winner: @game.status_finished? ? Player.find_by_id(@game.player_winner_id).name : nil }, status: :ok
+      render json: { table: @game.table, status: @game.status, finished: true, winner: @game.status_finished? ? Player.find_by_id(@game.player_winner_id).name : nil }, status: :ok
     end
   end
 

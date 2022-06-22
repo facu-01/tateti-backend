@@ -43,6 +43,10 @@ class Game < ApplicationRecord
     self.status_finished? || self.status_tied?
   end
 
+  def winning_combination
+    self.table
+  end
+
   def generate_token
     token = self.id * 22
     Munemo.to_s(token)
