@@ -11,50 +11,70 @@ class Game < ApplicationRecord
 
   enum status: { in_progress: 0, waiting_for_join: 1, tied: 2, finished: 3 }, _prefix: true
 
-  def initialize_game(current_player)
+  # Constants
+  WINNING_COMBINATIONS = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]].freeze
+
+  # Methods
+
+  def initialize_game(player)
     initial_table = [nil] * 9
     self.table = initial_table
-    self.player1_id = current_player.id
-    self.status_waiting_for_join!
+    self.player1_id = player.id
+    status_waiting_for_join!
   end
 
   def complete?
-    !self.player1_id.nil? && !self.player2_id.nil?
+    !player1_id.nil? && !player2_id.nil?
   end
 
-  def player_in_game?(current_player)
-    self.player1_id == current_player.id || self.player2_id == current_player.id
+  def player_in_game?(player)
+    player1_id == player.id || player2_id == player.id
   end
 
-  def join_game(current_player)
-    self.player2_id = current_player.id
-    self.first_player_id = [self.player2_id, self.player1_id].sample
-    self.status_in_progress!
+  def join_game(player)
+    self.player2_id = player.id
+    self.first_player_id = [player2_id, player1_id].sample
+    status_in_progress!
   end
 
-  def player_turn?(current_player)
-    return false if self.moves.empty? && self.first_player_id != current_player.id
-    return false if self.moves.last&.player_id == current_player.id
+  def player_turn?(player)
+    return false if moves.empty? && first_player_id != player.id
+    return false if moves.last&.player_id == player.id
 
     true
   end
 
-  def game_ended?
-    self.status_finished? || self.status_tied?
-  end
-
-  def winning_combination
-    self.table
+  def ended?
+    status_finished? || status_tied?
   end
 
   def generate_token
-    token = self.id * 22
+    token = id * 22
     Munemo.to_s(token)
   end
 
   def self.read_token(token)
     token = Munemo.to_i(token)
     (token / 22)
+  end
+
+  def player_win?(player)
+    player_cells = moves.all.where(player_id: player.id).map(&:cell_index)
+    WINNING_COMBINATIONS.any? { |combination| combination.all? { |c| player_cells.include?(c) } }
+  end
+
+  def winner_player
+    status_finished? ? Player.find_by_id(player_winner_id) : nil
+  end
+
+  def a_tie?
+    table.none?(&:nil?)
+  end
+
+  def versus(player)
+    nil unless complete?
+    player2 if player.id == player1_id
+    player1
   end
 
 end
