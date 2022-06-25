@@ -1,12 +1,17 @@
 class GamesController < ApplicationController
-  skip_before_action :authenticate_request, only: [:index]
   before_action :fetch_game, only: %i[join_game show move]
   before_action :check_player_in_game, only: %i[move show]
   before_action :check_game_ended, only: %i[move]
 
   def index
-    @games = Game.all
-    render json: @games, status: :ok
+    games = Game.where(player1_id: @current_player.id).or(Game.where(player2_id: @current_player.id)).map { |g|
+      { token: g.generate_token,
+        status: g.status,
+        versus: g.versus(@current_player)&.name,
+        yourTurn: g.player_turn?(@current_player),
+        winner: g.winner_player&.name,
+      } }
+    render json: games, status: :ok
   end
 
   def create
