@@ -42,10 +42,15 @@ class GamesController < ApplicationController
     render json: {
       table: @game.table,
       yourTurn: @game.player_turn?(@current_player),
+      yourSymbol: if @game.first_player_id
+                    @current_player.id == @game.first_player_id ? 'x' : 'o'
+                  end,
       status: @game.status,
       versus: @game.versus(@current_player)&.name,
-      finished: @game.ended?,
-      winner: @game.winner_player&.name
+      ended: @game.ended?,
+      winner: @game.winner_player&.name,
+      winningCombination: @game.winning_combination,
+      youWin: @game.winner_player ? @game.winner_player.id == @current_player.id : nil
     }
   end
 

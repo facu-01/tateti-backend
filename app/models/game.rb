@@ -63,6 +63,13 @@ class Game < ApplicationRecord
     WINNING_COMBINATIONS.any? { |combination| combination.all? { |c| player_cells.include?(c) } }
   end
 
+  def winning_combination
+    winner = winner_player
+    return nil unless winner
+    cells_played = moves.select { |move| move.player.id == winner.id }.map(&:cell_index)
+    WINNING_COMBINATIONS.find { |combination| (combination - cells_played).empty? }
+  end
+
   def winner_player
     status_finished? ? Player.find_by_id(player_winner_id) : nil
   end
@@ -73,7 +80,7 @@ class Game < ApplicationRecord
 
   def versus(player)
     nil unless complete?
-    player2 if player.id == player1_id
+    return player2 if player.id == player1_id
     player1
   end
 
