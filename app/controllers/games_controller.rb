@@ -3,13 +3,16 @@ class GamesController < ApplicationController
   before_action :check_player_in_game, only: %i[move show]
   before_action :check_game_ended, only: %i[move]
 
+  # TODO: filtrar por pendientes?
   def index
-    games = Game.where(player1_id: @current_player.id).or(Game.where(player2_id: @current_player.id)).map { |g|
+    games = Game.where(player1_id: @current_player.id).or(Game.where(player2_id: @current_player.id)).order(created_at: :desc).map { |g|
       { token: g.generate_token,
         status: g.status,
         versus: g.versus(@current_player)&.name,
         yourTurn: g.player_turn?(@current_player),
         winner: g.winner_player&.name,
+        ended: g.ended?,
+        youWin: g.winner_player ? g.winner_player.id == @current_player.id : nil
       } }
     render json: games, status: :ok
   end
