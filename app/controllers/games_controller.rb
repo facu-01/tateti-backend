@@ -1,19 +1,29 @@
 class GamesController < ApplicationController
-  before_action :fetch_game, only: %i[join_game show move]
+  before_action :fetch_game, only: %i[join_game show move destroy]
   before_action :check_player_in_game, only: %i[move show]
   before_action :check_game_ended, only: %i[move]
 
-  # TODO: filtrar por pendientes?
   def index
-    games = Game.where(player1_id: @current_player.id).or(Game.where(player2_id: @current_player.id)).order(created_at: :desc).map { |g|
-      { token: g.generate_token,
-        status: g.status,
-        versus: g.versus(@current_player)&.name,
-        yourTurn: g.player_turn?(@current_player),
-        winner: g.winner_player&.name,
-        ended: g.ended?,
-        youWin: g.winner_player ? g.winner_player.id == @current_player.id : nil
-      } }
+    only_pending = ActiveModel::Type::Boolean.new.cast(params.permit(:onlyPending)[:onlyPending])
+    my_turn = ActiveModel::Type::Boolean.new.cast(params.permit(:myTurn)[:myTurn])
+
+    # if is my turn the game is pending
+    result_games = Game.where(player1_id: @current_player.id)
+                       .or(Game.where(player2_id: @current_player.id))
+                       .where.not(only_pending || my_turn ? "status = #{Game.statuses[:tied]}" : {})
+                       .where.not(only_pending || my_turn ? "status = #{Game.statuses[:finished]}" : {})
+                       .order(created_at: :desc)
+                       .map { |g|
+                         { token: g.generate_token,
+                           status: g.status,
+                           versus: g.versus(@current_player)&.name,
+                           yourTurn: g.player_turn?(@current_player),
+                           winner: g.winner_player&.name,
+                           ended: g.ended?,
+                           youWin: g.winner_player ? g.winner_player.id == @current_player.id : nil
+                         }
+                       }
+    games = my_turn ? result_games.select { |g| g[:yourTurn] } : result_games
     render json: games, status: :ok
   end
 
@@ -25,6 +35,20 @@ class GamesController < ApplicationController
       render json: { gameToken: game_token, gameStatus: game.status }, status: :ok
     else
       render json: { errors: game.errors }, status: :unprocessable_entity
+    end
+  end
+
+  def destroy
+    if @game.status_waiting_for_join?
+      # we destroy the game
+      @game.destroy
+      if @game.destroyed?
+        render json: { message: 'game canceled successfully!' }, status: :ok
+      else
+        render json: { errors: @game.errors }, status: :unprocessable_entity
+      end
+    else
+      render json: { message: 'you only can cancel a game that did not start' }, status: :unprocessable_entity
     end
   end
 

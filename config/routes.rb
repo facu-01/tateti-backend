@@ -7,6 +7,7 @@ Rails.application.routes.draw do
   post '/auth/login', to: 'authentication#login'
 
   resources :games, only: [:index, :create]
+  delete '/games', to: 'games#destroy'
 
   get '/games/show', to: 'games#show'
   post '/games/join', to: 'games#join_game'
